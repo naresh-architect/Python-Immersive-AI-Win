@@ -1,0 +1,8 @@
+* 001-randomness-creativity-claude.ipynb
+* 001-randomness-creativity-numpy.ipynb
+* 002-api-basics.ipynb
+* 003-prompt-engineering.ipynb
+* 004-function-calling-using-tools.ipynb
+* 005-Pydantic-Tutorials.ipynb
+* 005-pydantic-validation.ipynb
+* get-names.sh

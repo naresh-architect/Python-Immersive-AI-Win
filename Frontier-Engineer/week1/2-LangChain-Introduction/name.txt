@@ -1,0 +1,7 @@
+* 001-langchain-prompts-template-usage.ipynb
+* 001-langchain-prompts-template-usage.py
+* 002-claude.py
+* 002-prompts-llm-chains-legacy.ipynb
+* 003-LCEL-demo.ipynb
+* api_key_check_utility.py
+* get-names.sh
