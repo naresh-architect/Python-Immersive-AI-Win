@@ -1,0 +1,162 @@
+= Python Virtual Environment Setup Guide
+:toc: right
+:toclevels: 2
+
+== Step 1: Go to your project directory
+
+[source,bash]
+----
+cd /Users/nareshchaurasia/nc/PYTHON-ARCHITECT/Python-Immersive-AI/GenAI-Rajeev/gen-ai-app-dev
+----
+
+== Step 2: Delete the old virtual environment (Optional)
+
+[source,bash]
+----
+rm -rf .venv
+----
+
+== Step 3: Create a new virtual environment
+
+[source,bash]
+----
+python3 -m venv .venv
+----
+
+== Step 4: Activate the virtual environment
+
+[source,bash]
+----
+source .venv/bin/activate
+----
+
+Expected prompt:
+
+[source,text]
+----
+(.venv) nareshchaurasia@Nareshs-MacBook-Pro gen-ai-app-dev %
+----
+
+== Step 5: Upgrade pip
+
+[source,bash]
+----
+python -m ensurepip --upgrade
+python -m pip install --upgrade pip
+----
+
+Verify:
+
+[source,bash]
+----
+python -m pip --version
+----
+
+== Step 6: Install the required packages
+
+[source,bash]
+----
+pip install numpy matplotlib scikit-learn sentence-transformers jupyter ipykernel
+----
+
+Verify:
+
+[source,bash]
+----
+pip list
+----
+
+== Step 7: Register the virtual environment as a Jupyter kernel
+
+[source,bash]
+----
+python -m ipykernel install \
+    --user \
+    --name venv_week2_rag \
+    --display-name "Python (venv_week2_rag)"
+----
+
+== Step 8: Start Jupyter
+
+[source,bash]
+----
+jupyter notebook
+----
+
+or
+
+[source,bash]
+----
+jupyter lab
+----
+
+== Step 9: Select the new kernel
+
+----
+Kernel
+→ Change Kernel
+→ Python (gen-ai-app-dev)
+----
+
+== Step 10: Verify the active Python
+
+[source,python]
+----
+import sys
+print(sys.executable)
+----
+
+Expected output:
+
+[source,text]
+----
+.../gen-ai-app-dev/.venv/bin/python
+----
+
+== Step 11: Test the imports
+
+[source,python]
+----
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
+
+print("Everything works!")
+----
+
+== Recommended Project Structure
+
+[source,text]
+----
+gen-ai-app-dev/
+├── .venv/
+├── notebooks/
+│   ├── NB-01.ipynb
+│   └── NB-02.ipynb
+├── requirements.txt
+├── README.md
+└── src/
+----
+
+== Save Dependencies
+
+[source,bash]
+----
+pip freeze > requirements.txt
+----
+
+To recreate later:
+
+[source,bash]
+----
+pip install -r requirements.txt
+----
+
+== Best Practice
+
+* Create one virtual environment per project.
+* Always install packages after activating the virtual environment.
+* Register the virtual environment as a Jupyter kernel.
+* Verify `sys.executable` before installing packages.

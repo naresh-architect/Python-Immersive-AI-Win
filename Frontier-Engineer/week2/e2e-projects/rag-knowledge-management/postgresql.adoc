@@ -1,0 +1,341 @@
+= Company Knowledge Assistant — PostgreSQL Setup
+:author: Naresh Chaurasia
+:doctype: book
+:icons: font
+:revdate: {docdate}
+:revnumber: 1.0
+:revremark: First Edition — Project-Specific
+:sectnumlevels: 5
+:sectnums: 5
+:source-highlighter: highlight.js
+:toc: right
+:toclevels: 5
+
+== Overview
+
+This guide explains how to set up **PostgreSQL 17 with pgvector** specifically for the **Company Knowledge Assistant** RAG application.
+
+In this project, PostgreSQL serves as the **vector database** — it stores document chunks along with their OpenAI `text-embedding-3-small` (1536-dimensional) embeddings. The `pgvector` extension enables efficient similarity search via HNSW indexes.
+
+== Prerequisites
+
+Verify Homebrew is installed:
+
+[source,bash]
+----
+brew --version
+----
+
+== Install PostgreSQL 17
+
+The project requires **PostgreSQL 17** (not 18) with the pgvector extension.
+
+[source,bash]
+----
+brew install postgresql@17
+----
+
+Verify:
+
+[source,bash]
+----
+psql --version
+----
+
+== View PostgreSQL Information
+
+[source,bash]
+----
+brew info postgresql@17
+----
+
+The default data directory is typically:
+
+----
+/opt/homebrew/var/postgresql@17
+----
+
+== Install pgvector
+
+The `pgvector` extension adds vector similarity search capabilities required by the project's RAG pipeline.
+
+[source,bash]
+----
+brew install pgvector
+----
+
+== Start PostgreSQL Manually
+
+[source,bash]
+----
+/opt/homebrew/opt/postgresql@17/bin/pg_ctl \
+  -D /opt/homebrew/var/postgresql@17 \
+  -l /opt/homebrew/var/postgresql@17/server.log start
+----
+
+== Stop PostgreSQL
+
+[source,bash]
+----
+/opt/homebrew/opt/postgresql@17/bin/pg_ctl \
+  -D /opt/homebrew/var/postgresql@17 stop
+----
+
+== Start as a Homebrew Service
+
+[source,bash]
+----
+brew services start postgresql@17
+----
+
+== Stop Homebrew Service
+
+[source,bash]
+----
+brew services stop postgresql@17
+----
+
+== Check Whether PostgreSQL Is Running
+
+[source,bash]
+----
+pg_isready
+----
+
+Expected output: `/tmp/.s.PGSQL.5432 - accepting connections`
+
+[source,bash]
+----
+ps aux | grep postgres
+----
+
+[source,bash]
+----
+lsof -i :5432
+----
+
+== Connect to PostgreSQL
+
+[source,bash]
+----
+psql -d postgres
+----
+
+[source,bash]
+----
+psql -U nareshchaurasia -d postgres
+----
+
+== List Databases
+
+[source,sql]
+----
+\l
+----
+
+== List Users
+
+[source,sql]
+----
+\du
+----
+
+== Create the Database
+
+The project uses the default `postgres` database. You can use it as-is or create a dedicated database:
+
+[source,sql]
+----
+CREATE DATABASE genai_db;
+
+\q
+----
+
+Connect:
+
+[source,bash]
+----
+psql -U nareshchaurasia -d genai_db
+----
+
+== Enable pgvector
+
+Extension must be enabled **per database**. Run this in whichever database the project will use:
+
+[source,sql]
+----
+CREATE EXTENSION IF NOT EXISTS vector;
+----
+
+Verify:
+
+[source,sql]
+----
+\dx
+----
+
+You should see `vector` listed in the extensions.
+
+== Project-Specific: Create the Embeddings Table
+
+The project uses a specific table schema defined in `init-db/init.sql`. Run this command to create it:
+
+[source,sql]
+----
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS langchain_pg_embedding (
+    langchain_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    content text,
+    embedding vector(1536),
+    langchain_metadata jsonb,
+    category text
+);
+----
+
+Or run the SQL file directly from the project root:
+
+[source,bash]
+----
+psql -U postgres -d postgres -f init-db/init.sql
+----
+
+=== Table Columns Explained
+
+|===
+| Column | Type | Purpose
+| `langchain_id` | `uuid` | Primary key, auto-generated with `gen_random_uuid()`
+| `content` | `text` | The raw text content of each document chunk
+| `embedding` | `vector(1536)` | 1536-dimensional embedding from OpenAI `text-embedding-3-small`
+| `langchain_metadata` | `jsonb` | Flexible JSON metadata (source file, chunk index, etc.)
+| `category` | `text` | Document category derived from folder name (guides, policies, faqs, etc.)
+|===
+
+Verify the table was created:
+
+[source,bash]
+----
+psql -U postgres -d postgres -c "\d langchain_pg_embedding"
+----
+
+== Project-Specific: Create the HNSW Index
+
+After ingesting documents, the application automatically creates an **HNSW** (Hierarchical Navigable Small World) index for efficient vector search. You can also create it manually:
+
+[source,sql]
+----
+CREATE INDEX IF NOT EXISTS langchain_pg_embedding_hnsw_idx
+    ON langchain_pg_embedding
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+----
+
+* `m = 16` — Maximum number of connections per node (higher = more accuracy, slower indexing)
+* `ef_construction = 64` — Index build quality (higher = better recall, slower construction)
+* `vector_cosine_ops` — Cosine distance operator class for similarity search
+
+== Project Connection String
+
+The application connects to PostgreSQL using this connection string format in the `.env` file:
+
+[source]
+----
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+----
+
+If using your macOS username instead of `postgres`:
+
+[source]
+----
+DATABASE_URL=postgresql+asyncpg://nareshchaurasia@localhost:5432/postgres
+----
+
+To verify the connection works from the app context:
+
+[source,bash]
+----
+psql -U postgres -d postgres -c "SELECT count(*) FROM langchain_pg_embedding;"
+----
+
+== Set a Password
+
+[source,sql]
+----
+ALTER USER nareshchaurasia
+WITH PASSWORD 'MySecurePassword123!';
+----
+
+After setting a password, update the `.env` `DATABASE_URL` to include it:
+
+[source]
+----
+DATABASE_URL=postgresql+asyncpg://nareshchaurasia:MySecurePassword123!@localhost:5432/postgres
+----
+
+== View Logs
+
+[source,bash]
+----
+tail -50 /opt/homebrew/var/postgresql@17/server.log
+----
+
+== Disable Automatic Startup
+
+If you don't want PostgreSQL to start automatically at login:
+
+[source,bash]
+----
+brew services stop postgresql@17
+----
+
+[source,bash]
+----
+launchctl bootout gui/$(id -u) \
+~/Library/LaunchAgents/homebrew.mxcl.postgresql@17.plist
+
+rm ~/Library/LaunchAgents/homebrew.mxcl.postgresql@17.plist
+----
+
+== Uninstall PostgreSQL
+
+[source,bash]
+----
+brew services stop postgresql@17
+brew uninstall postgresql@17
+rm -rf /opt/homebrew/var/postgresql@17
+brew cleanup
+----
+
+== Project-Specific: Quick Verification Checklist
+
+Run these commands to verify PostgreSQL is properly set up for the project:
+
+[source,bash]
+----
+# 1. PostgreSQL is running
+pg_isready
+
+# 2. pgvector extension is enabled
+psql -U postgres -d postgres -c "SELECT * FROM pg_extension WHERE extname='vector';"
+
+# 3. The embeddings table exists with the correct schema
+psql -U postgres -d postgres -c "\d langchain_pg_embedding"
+
+# 4. The HNSW index exists (after ingestion)
+psql -U postgres -d postgres -c "\di langchain_pg_embedding_hnsw_idx"
+----
+
+== Useful Commands
+
+[source,bash]
+----
+psql --version
+brew services list
+pg_isready
+psql -d postgres
+pg_ctl -D /opt/homebrew/var/postgresql@17 start
+pg_ctl -D /opt/homebrew/var/postgresql@17 stop
+tail -50 /opt/homebrew/var/postgresql@17/server.log
+psql -U postgres -d postgres -c "\d langchain_pg_embedding"
+psql -U postgres -d postgres -c "\di"
+----

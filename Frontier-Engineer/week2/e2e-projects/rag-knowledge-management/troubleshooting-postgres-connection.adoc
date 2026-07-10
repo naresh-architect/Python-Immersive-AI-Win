@@ -1,0 +1,188 @@
+= Troubleshooting: PostgreSQL Connection Fix
+:author: 
+:doctype: book
+:icons: font
+:revdate: {docdate}
+:revremark: Fix for sqlalchemy.exc.ArgumentError: Expected string or URL object, got None
+:source-highlighter: highlight.js
+:toc: right
+:toclevels: 3
+
+== 1. Problem Description
+
+When starting the application locally (outside Docker), the following error occurred during startup:
+
+[source,python]
+----
+sqlalchemy.exc.ArgumentError: Expected string or URL object, got None
+----
+
+The full traceback showed the failure originated in `app/utils.py` at line 13:
+
+[source,python]
+----
+PG_ENGINE = PGEngine.from_connection_string(PG_CONN_STR)
+----
+
+where `PG_CONN_STR` was `None`.
+
+== 2. Root Cause Analysis
+
+Two independent issues caused the connection string to be `None`:
+
+=== 2.1 Missing `load_dotenv()` Call
+
+The `app/utils.py` file read environment variables using `os.getenv("DATABASE_URL")` at module level, but never called `load_dotenv()` to load variables from the `.env` file.
+
+[source,python]
+----
+# BEFORE (broken):
+import os
+from langchain_openai import OpenAIEmbeddings
+from langchain_postgres.v2.engine import PGEngine
+from langchain_postgres.v2.async_vectorstore import AsyncPGVectorStore
+
+PG_CONN_STR = os.getenv("DATABASE_URL")          # ← Always None!
+PG_ENGINE = PGEngine.from_connection_string(PG_CONN_STR)
+----
+
+When the application runs via `uvicorn app.api:app --reload`, the module-level code in `utils.py` executes during import. At that point, no `.env` file has been loaded, so `os.getenv("DATABASE_URL")` returns `None`.
+
+When running inside Docker, `docker-compose.yml` sets environment variables directly via the `env_file: .env` directive in the container definition. This works because Docker reads `.env` automatically. But locally, the Python process has no such mechanism unless the code explicitly calls `load_dotenv()`.
+
+=== 2.2 Docker Hostnames in `.env`
+
+The `.env` file contained Docker service names as hostnames:
+
+[source]
+----
+# BEFORE (Docker-only):
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+REDIS_URL=redis://cka-redis:6379/0
+----
+
+- `postgres` is the Docker Compose service name — resolvable only inside the Docker network.
+- `cka-redis` is the Docker Compose Redis service name — resolvable only inside the Docker network.
+- When running locally, the correct hostnames are `localhost` (or `127.0.0.1`).
+
+== 3. Changes Applied
+
+=== 3.1 `app/utils.py` — Added `load_dotenv()`
+
+Two lines added:
+
+1. `from dotenv import load_dotenv` — import the function
+2. `load_dotenv()` — call it before reading any environment variables
+
+[source,python]
+----
+# AFTER (fixed):
+import os
+from dotenv import load_dotenv                      # ← Added import
+from langchain_openai import OpenAIEmbeddings
+from langchain_postgres.v2.engine import PGEngine
+from langchain_postgres.v2.async_vectorstore import AsyncPGVectorStore
+
+load_dotenv()                                       # ← Added call
+
+PG_CONN_STR = os.getenv("DATABASE_URL")             # ← Now reads correctly
+PG_ENGINE = PGEngine.from_connection_string(PG_CONN_STR)
+----
+
+=== 3.2 `.env` — Updated Hostnames for Local Development
+
+Changed Docker service names to `localhost`:
+
+[source]
+----
+# AFTER (local-compatible):
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+REDIS_URL=redis://localhost:6379/0
+----
+
+== 4. Additional Issues Encountered and Resolved
+
+=== 4.1 Missing Python Dependencies
+
+The virtual environment `.venv_rag_week2` was missing several required packages. These were installed:
+
+[source,bash]
+----
+pip install langchain-redis langchain-postgres langchain-cohere langchain-classic \
+         pymupdf unstructured python-docx pypdf cohere asyncpg psycopg2-binary \
+         httpx python-multipart
+----
+
+=== 4.2 Redis Stack Required (Not Homebrew Redis)
+
+The `langchain-redis` package uses RediSearch's `FT._LIST` command for semantic cache initialization. The Homebrew-installed Redis does not include this module.
+
+**Fix:** Stopped the Homebrew Redis service and started Redis Stack via Docker:
+
+[source,bash]
+----
+brew services stop redis
+docker run -d --name cka-redis -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+----
+
+Verify RediSearch is available:
+
+[source,bash]
+----
+redis-cli FT._LIST
+# (empty array) — means RediSearch is working with no indexes yet
+----
+
+=== 4.3 Expired OpenAI API Key
+
+The original OpenAI API key in `.env` had expired and returned HTTP 401:
+
+[source]
+----
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'Incorrect API key provided...'}}
+----
+
+**Fix:** Updated `OPENAI_API_KEY` in `.env` with a valid key from https://platform.openai.com/account/api-keys.
+
+== 5. Verification
+
+After all fixes, the application starts successfully:
+
+[source,bash]
+----
+cd Frontier-Engineer/week2/e2e-projects/rag-knowledge-management
+uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+----
+
+Expected output:
+
+[source,text]
+----
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [39817] using WatchFiles
+INFO:     Started server process [40008]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+----
+
+Verify endpoints:
+
+[source,bash]
+----
+curl http://localhost:8000/                      # Returns HTML page (200 OK)
+curl http://localhost:8000/ingest/status         # {"ok":true,"status":"idle",...}
+----
+
+== 6. Files Modified
+
+| File | Change Description |
+|------|-------------------|
+| `app/utils.py` | Added `from dotenv import load_dotenv` and `load_dotenv()` call |
+| `.env` | Changed `postgres` → `localhost` in `DATABASE_URL`, changed `cka-redis` → `localhost` in `REDIS_URL` |
+
+== 7. Lessons Learned
+
+1. **Module-level code** that reads environment variables must ensure `load_dotenv()` is called before any `os.getenv()` — especially when running outside Docker.
+2. **`.env` files** used for local development should use `localhost` hostnames, not Docker Compose service names.
+3. **`redis/redis-stack`** image is required (not plain `redis`) when using `langchain-redis` with RediSearch-dependent features like `RedisSemanticCache`.
+4. When running locally, always verify: PostgreSQL is running, Redis Stack is running, and API keys are valid.

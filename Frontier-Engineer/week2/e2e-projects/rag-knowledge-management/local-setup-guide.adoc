@@ -1,0 +1,508 @@
+= Company Knowledge Assistant
+:author: Naresh Chaurasia
+:doctype: book
+:icons: font
+:revdate: {docdate}
+:revnumber: 1.3
+:revremark: Fourth Edition - Added Week 5 final integrative capstone
+:sectnumlevels: 5
+:sectnums: 5
+:source-highlighter: highlight.js
+:toc: right
+:toclevels: 5
+
+== 1. Overview
+
+This guide explains how to run the **Company Knowledge Assistant** RAG application **without Docker** — directly on your macOS machine with locally installed PostgreSQL, Redis, and Python.
+
+== 2. Prerequisites
+
+Before starting, ensure you have the following installed on your machine:
+
+* **Homebrew** (macOS package manager) — https://brew.sh
+* **Python 3.11+** — Check with `python3 --version`
+* **PostgreSQL 17** (with pgvector extension)
+* **Redis**
+* An **OpenAI API key** (with access to `text-embedding-3-small` and `gpt-4o-mini`)
+* (Optional) A **Cohere API key** for reranking
+
+== 3. Step-by-Step Setup
+
+=== 3.1 Create and Activate a Python Virtual Environment
+
+Open a terminal and run:
+
+[source,bash]
+----
+cd Frontier-Engineer/week2/e2e-projects/rag-knowledge-management
+python3 -m venv venv_cka
+source venv_cka/bin/activate
+----
+
+Your prompt should now show `(venv_cka)` indicating the virtual environment is active.
+
+=== 3.2 Install PostgreSQL 17 with pgvector
+
+[source,bash]
+----
+# Install PostgreSQL 17
+brew install postgresql@17
+
+# Start PostgreSQL as a background service
+brew services start postgresql@17
+
+# Install pgvector extension
+brew install pgvector
+
+# Verify PostgreSQL is running
+pg_isready
+----
+
+Expected output: `/tmp/.s.PGSQL.5432 - accepting connections`
+
+=== 3.3 Create the Database and Enable pgvector
+
+[source,bash]
+----
+# Connect to PostgreSQL as the default user (your macOS username)
+psql -d postgres
+
+# Inside the psql shell, run these commands one by one:
+CREATE EXTENSION IF NOT EXISTS vector;
+\q
+----
+
+*NOTE:* If your macOS username is different from `postgres`, you may need to create the `postgres` user or update the connection string later. Run this if needed:
+
+[source,bash]
+----
+createuser -s postgres
+psql -d postgres -c "\du"
+----
+
+=== 3.4 Initialize the Database Table
+
+[source,bash]
+----
+psql -U postgres -d postgres -f init-db/init.sql
+----
+
+This creates the `langchain_pg_embedding` table with the vector column.
+
+Verify the table was created:
+
+[source,bash]
+----
+psql -U postgres -d postgres -c "\d langchain_pg_embedding"
+----
+
+You should see columns: `langchain_id`, `content`, `embedding`, `langchain_metadata`, `category`.
+
+=== 3.5 Install Redis (for Semantic Caching)
+
+[source,bash]
+----
+# Install Redis
+brew install redis
+
+# Start Redis as a background service
+brew services start redis
+
+# Verify Redis is running
+redis-cli ping
+----
+
+Expected output: `PONG`
+
+=== 3.6 Update the .env File
+
+Open the `.env` file in the project directory and make these changes:
+
+1. Replace the `DATABASE_URL` value with your local connection string:
+
+[source]
+----
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+----
+
+*If you are using your macOS username instead of `postgres`:*
+
+[source]
+----
+DATABASE_URL=postgresql+asyncpg://YOUR_MACOS_USERNAME@localhost:5432/postgres
+----
+
+2. Replace the `REDIS_URL` value to point to localhost:
+
+[source]
+----
+REDIS_URL=redis://localhost:6379/0
+----
+
+3. Update the `OPENAI_API_KEY` with your own key:
+
+[source]
+----
+OPENAI_API_KEY=sk-your-actual-openai-api-key-here
+----
+
+4. (Optional) Update the `CO_API_KEY` with your Cohere key if you want reranking:
+
+[source]
+----
+CO_API_KEY=your-cohere-api-key-here
+----
+
+IMPORTANT: The `.env` file currently contains live API keys. Replace them with your own keys to avoid hitting rate limits or unauthorized usage.
+
+=== 3.7 Install Python Dependencies
+
+Create a `requirements.txt` file in the project root (`Frontier-Engineer/week2/e2e-projects/rag-knowledge-management/requirements.txt`) with the following content:
+
+
+* /Users/nareshchaurasia/nc/PYTHON-ARCHITECT/Python-Immersive-AI/ALL-VENV/venv_knowledge_management_requirements.txt
+
+
+Then install all dependencies:
+
+[source,bash]
+----
+pip install --upgrade pip
+pip install -r venv_knowledge_management_requirements.txt
+----
+
+*Installation time:* This may take 2–5 minutes depending on your internet connection.
+
+NOTE: If you encounter issues with `unstructured` or `pymupdf`, try installing missing system libraries:
+
+[source,bash]
+----
+brew install poppler tesseract libffi
+----
+
+Then retry: `pip install -r requirements.txt`
+
+=== 3.8 How the Code Calls Dependencies (Important)
+
+The project uses these import paths — make sure they match what's installed:
+
+* `langchain_classic` → provided by the `langchain-classic` package (used in `rag.py`)
+* `langchain_postgres.v2` → provided by the `langchain-postgres` package (used in `utils.py` and `ingest.py`)
+
+If you get `ModuleNotFoundError` for `langchain_classic`, run:
+
+[source,bash]
+----
+pip show langchain-classic
+----
+
+If not installed, install it: `pip install langchain-classic`
+
+=== 3.9 Run the Application
+
+Make sure your virtual environment is still active (`source venv_cka/bin/activate` if not).
+
+[source,bash]
+----
+cd Frontier-Engineer/week2/e2e-projects/rag-knowledge-management
+uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+----
+
+You should see output like:
+
+[source]
+----
+INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     (Press CTRL+C to quit)
+INFO:     Started reloader process [xxxxx] using WatchFiles
+INFO:     Started server process [xxxxx]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+----
+
+
+To stop the uvicorn server, press __`Ctrl+C`__ in the terminal where it's running.
+
+If you need to kill it from another terminal (if the process is running in the background), use:
+
+```bash
+# Find the process on port 8000 and kill it
+lsof -ti:8000 | xargs kill -9
+```
+
+
+To stop the uvicorn server, use one of these methods:
+
+__1. If the terminal is in the foreground__ — Press `Ctrl+C` in the terminal where uvicorn is running.
+
+__2. If running in the background or from another terminal__ — Kill the process on port 8000:
+
+```bash
+lsof -ti:8000 | xargs kill -9
+```
+
+__3. To stop all related services__ (PostgreSQL, Redis Stack, and the app):
+
+
+----
+Redis Stack runs as a Docker image because __Homebrew does not provide a `redis-stack` formula that can be installed directly via `brew install`__.
+
+The regular Homebrew Redis (`brew install redis`) is a minimal Redis server that does __not__ include the RediSearch module. The `langchain-redis` package's `RedisSemanticCache` depends on RediSearch's `FT._LIST` command, which is only available in the Redis Stack distribution.
+
+There is no `brew install redis-stack` alternative — only a `redis-insight` GUI cask exists via Homebrew. The official installation method for Redis Stack on macOS is either:
+
+1. __Docker__ (the approach we're using): `docker run -d --name cka-redis -p 6379:6379 redis/redis-stack:latest`
+2. __Direct download__ from redis.com: Download and run the Redis Stack server binary manually
+
+So Docker is the simplest and cleanest way to get Redis Stack running locally. If you'd like to avoid Docker for Redis, there are two alternatives:
+
+__Option A: Disable Redis semantic caching__ — Remove or comment out the `RedisSemanticCache` block in `app/rag.py` (lines 39-45). The app will work without caching, just without the performance benefit of cached responses for semantically similar questions.
+
+__Option B: Use a simpler Redis cache__ — Replace `RedisSemanticCache` with a basic TTL-based Redis cache that doesn't require RediSearch.
+
+Would you like me to proceed with either of these alternatives to eliminate the Docker dependency?
+
+----
+
+```bash
+# Stop the app
+lsof -ti:8000 | xargs kill -9
+
+# Stop Redis Stack container
+docker run -d --name cka-redis -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+docker stop cka-redis
+docker rm cka-redis
+
+# Stop PostgreSQL (optional)
+brew services stop postgresql@17
+```
+
+
+
+=== 3.10 Open the Web UI
+
+Open your browser and go to:
+
+----
+http://localhost:8000
+----
+
+You should see the **Company Knowledge Assistant** interface.
+
+=== 3.11 Ingest the Documents
+
+In the browser UI, click the **"Ingest Data"** button.
+
+Or use curl from the terminal:
+
+[source,bash]
+----
+curl -X POST http://localhost:8000/ingest
+----
+
+Check the ingestion status:
+
+[source,bash]
+----
+curl http://localhost:8000/ingest/status
+----
+
+You should eventually see:
+
+[source,json]
+----
+{"ok":true,"status":"succeeded","started_at":...,"finished_at":...,"stats":{"documents":8,"chunks":300}}
+----
+
+*Troubleshooting:* If ingestion fails with a database error, double-check that:
+- PostgreSQL is running: `pg_isready`
+- The `vector` extension is enabled: `psql -U postgres -d postgres -c "SELECT * FROM pg_extension WHERE extname='vector';"`
+- The `langchain_pg_embedding` table exists: `psql -U postgres -d postgres -c "\d langchain_pg_embedding"`
+- Your `DATABASE_URL` in `.env` matches your local PostgreSQL credentials
+
+=== 3.12 Ask Questions
+
+In the browser UI, type a question in the text area and click **"Ask"**.
+
+Or use curl:
+
+[source,bash]
+----
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the company policy on remote work?"}'
+----
+
+Example questions you can try:
+
+* "What is the maximum number of PTO days that can be carried forward?"
+* "How do I set up my corporate email?"
+* "What is the VPN policy for remote employees?"
+* "Tell me about the Q1 2025 announcement"
+
+=== 3.13 (Optional) Run RAGAS Evaluation
+
+After ingestion is complete and the app is running:
+
+[source,bash]
+----
+cd app
+python eval_ragas.py
+----
+
+This runs the test Q&A pairs from `seed/qna_test.json` and prints evaluation metrics.
+
+== 4. Architecture Overview (Local Setup)
+
+When running locally without Docker, your system runs these processes:
+
+[source]
+----
+┌─────────────────────────┐      ┌─────────────────┐
+│  Terminal 1:            │      │  Your Browser    │
+│  uvicorn app.api:app    │◄─────►  http://localhost│
+│  (FastAPI server)       │      │  :8000           │
+│  Port 8000              │      └─────────────────┘
+└──────────┬──────────────┘
+           │
+           ├──────────────────► PostgreSQL (local)
+           │   Port 5432       pgvector extension
+           │                   Table: langchain_pg_embedding
+           │
+           └──────────────────► Redis (local)
+               Port 6379       Semantic cache
+----
+
+== 5. Verifying Everything is Running
+
+Use these commands to verify each component:
+
+[source,bash]
+----
+# Verify PostgreSQL
+pg_isready
+
+# Verify Redis
+redis-cli ping
+
+# Verify the app
+curl http://localhost:8000/health
+
+# Check if the app is serving
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/
+----
+
+== 6. Stopping the Application
+
+To stop everything:
+
+[source,bash]
+----
+# Stop the FastAPI server — press Ctrl+C in the terminal where it's running
+
+# Stop PostgreSQL (if you want to free resources)
+brew services stop postgresql@17
+
+# Stop Redis (if you want to free resources)
+brew services stop redis
+
+docker run -d --name cka-redis -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+
+
+
+# Deactivate the virtual environment
+deactivate
+----
+
+== 7. Restarting After Stopping
+
+When you want to run the project again later:
+
+[source,bash]
+----
+# Start services
+brew services start postgresql@17
+brew services start redis
+
+# Activate environment
+cd Frontier-Engineer/week2/e2e-projects/rag-knowledge-management
+source venv_cka/bin/activate
+
+# Run the app
+uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+----
+
+*Note:* The data in PostgreSQL and Redis persists across restarts if you used `brew services`. You don't need to re-ingest documents unless you clear the database.
+
+== 8. Troubleshooting
+
+=== ModuleNotFoundError: No module named 'langchain_classic'
+
+Install the missing package:
+
+[source,bash]
+----
+pip install langchain-classic
+----
+
+=== ModuleNotFoundError: No module named 'langchain_postgres'
+
+[source,bash]
+----
+pip install langchain-postgres
+----
+
+=== Connection refused to PostgreSQL
+
+Ensure PostgreSQL is running:
+
+[source,bash]
+----
+brew services list | grep postgresql
+pg_isready
+----
+
+If not running: `brew services start postgresql@17`
+
+=== Connection refused to Redis
+
+[source,bash]
+----
+brew services list | grep redis
+redis-cli ping
+----
+
+If not running: `brew services start redis`
+
+=== Ingestion fails with authentication error
+
+Your PostgreSQL user might need a password or the correct permissions. Try:
+
+[source,bash]
+----
+# Set a password for postgres user
+psql -d postgres -c "ALTER USER postgres PASSWORD 'postgres';"
+
+# Then update .env to use password authentication
+# DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+----
+
+Or if your macOS user is the PostgreSQL superuser:
+
+[source,bash]
+----
+# Use trust authentication — update .env to:
+DATABASE_URL=postgresql+asyncpg://YOUR_USERNAME@localhost:5432/postgres
+----
+
+Where `YOUR_USERNAME` is the output of `whoami`.
+
+== 9. Summary of Services and Ports
+
+|===
+| Service | Port | Purpose
+| FastAPI App | 8000 | Web UI and API endpoints
+| PostgreSQL | 5432 | Vector database (embeddings + metadata)
+| Redis | 6379 | Semantic cache for LLM responses
+| RedisInsight | 8001 | Redis GUI (only if running redis-stack)
+|===
