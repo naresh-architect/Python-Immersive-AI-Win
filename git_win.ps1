@@ -1,10 +1,10 @@
-clear
+Clear-Host
 
 git add .
 
-my_date=$(date)
+$my_date = Get-Date
 
-echo $my_date
+Write-Output $my_date
 
 git commit -m "Windows, Checkin Timestamp::$my_date"
 
