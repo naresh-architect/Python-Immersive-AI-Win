@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Domain Agentic Evaluator — Management Overview</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8;
+    --card:#FFFFFF;
+    --ink:#16213A;
+    --body:#3A3F4B;
+    --muted:#6B7280;
+    --line:#E1E4E9;
+    --teal:#2A6F6F;
+    --amber:#B98900;
+    --purple:#6B5B95;
+    --green:#4C7A3F;
+    --berry:#A83E5D;
+    --slate:#5B6B7A;
+    --blue:#3D6EA8;
+    --brown:#8A5A2B;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--bg); color:var(--body);
+    font-family:var(--sans); line-height:1.55; font-size:16px;
+  }
+  a{color:var(--teal);}
+  :focus-visible{ outline:2px solid var(--teal); outline-offset:3px; }
+
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  header.top{
+    background:var(--ink); color:#EDEFF3; padding:56px 0 40px;
+    border-bottom:5px solid var(--teal);
+  }
+  header.top .eyebrow{
+    font-family:var(--mono); text-transform:uppercase; letter-spacing:.14em;
+    font-size:12.5px; color:#9FB3C8; margin-bottom:14px;
+  }
+  header.top h1{
+    font-family:var(--serif); font-weight:700; font-size:clamp(28px,4vw,42px);
+    margin:0 0 10px; letter-spacing:-0.01em; max-width:20ch;
+  }
+  header.top p.sub{ max-width:62ch; color:#C4CBD6; font-size:17px; margin:0; }
+  header.top .meta{ margin-top:22px; font-family:var(--mono); font-size:12.5px; color:#8393A6; }
+
+  section{ padding:52px 0; border-bottom:1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+  h2{
+    font-family:var(--serif); font-size:26px; color:var(--ink); margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  h2 .num{ font-family:var(--mono); color:var(--teal); font-size:15px; font-weight:600; margin-right:10px; }
+  .section-intro{ color:var(--muted); max-width:70ch; margin:0 0 30px; font-size:15.5px; }
+
+  /* Stat cards */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .stat-card{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:22px 18px; border-top:3px solid var(--teal);
+  }
+  .stat-card .num{ font-family:var(--mono); font-size:26px; font-weight:700; color:var(--ink); display:block; }
+  .stat-card .label{ font-size:13px; color:var(--muted); margin-top:6px; display:block; }
+
+  /* Level cards (signature element) */
+  .level-track{ position:relative; display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-top:8px; }
+  .level-card{
+    background:var(--card); border:1px solid var(--line); padding:26px 22px; position:relative;
+  }
+  .level-card:not(:last-child){ border-right:none; }
+  .level-card:first-child{ border-radius:6px 0 0 6px; }
+  .level-card:last-child{ border-radius:0 6px 6px 0; }
+  .level-card .lvl-num{
+    font-family:var(--mono); font-size:12px; color:#fff; background:var(--teal);
+    width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    margin-bottom:14px;
+  }
+  .level-card:nth-child(2) .lvl-num{ background:var(--amber); }
+  .level-card:nth-child(3) .lvl-num{ background:var(--berry); }
+  .level-card h3{ font-size:16px; margin:0 0 6px; color:var(--ink); }
+  .level-card .analogy{ font-size:13px; color:var(--muted); font-style:italic; margin:0 0 10px; }
+  .level-card p{ font-size:14px; margin:0; }
+  .level-track::after{
+    content:""; position:absolute; top:50%; left:0; right:0; height:1px;
+    background:repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 12px);
+    z-index:-1; opacity:.4;
+  }
+
+  /* tables */
+  table{ width:100%; border-collapse:collapse; font-size:14.5px; background:var(--card); }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--mono); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; background:#FAFBFC; }
+  tr:last-child td{ border-bottom:none; }
+  .table-wrap{ border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+
+  /* chart cards */
+  .chart-card{
+    background:var(--card); border:1px solid var(--line); border-radius:6px; padding:22px 20px 12px; margin:22px 0;
+  }
+  .chart-card h4{ font-size:15px; margin:0 0 3px; color:var(--ink); }
+  .chart-card .chart-note{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+  .chart-box{ position:relative; height:340px; }
+  .chart-box.short{ height:280px; }
+  /* cumulative explainer bar */
+  .cumul-guide{ margin-bottom:26px; }
+  .cumul-guide .guide-label{ font-family:var(--mono); font-size:12px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:.05em; }
+  .cumul-bar{ display:flex; width:100%; height:40px; border-radius:5px; overflow:hidden; }
+  .cumul-bar .seg{ display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--mono); font-size:12px; font-weight:700; white-space:nowrap; }
+  .cumul-bar .seg.l1{ background:var(--teal); flex:0 0 18%; }
+  .cumul-bar .seg.l2{ background:var(--amber); flex:0 0 37%; }
+  .cumul-bar .seg.l3{ background:var(--berry); flex:0 0 45%; }
+  .cumul-captions{ display:flex; margin-top:8px; }
+  .cumul-captions .cap{ font-size:12.5px; color:var(--muted); }
+  .cumul-captions .cap.l1{ flex:0 0 18%; }
+  .cumul-captions .cap.l2{ flex:0 0 37%; }
+  .cumul-captions .cap.l3{ flex:0 0 45%; }
+  .cumul-captions .cap strong{ display:block; color:var(--ink); font-size:13px; }
+  @media (max-width:700px){
+    .cumul-bar{ flex-direction:column; height:auto; }
+    .cumul-bar .seg{ flex:none !important; padding:10px; }
+    .cumul-captions{ flex-direction:column; gap:8px; }
+    .cumul-captions .cap{ flex:none !important; }
+  }
+
+  .doughnut-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+  .doughnut-card{ text-align:center; }
+  .doughnut-card .chart-box{ height:220px; }
+  .doughnut-card .dtitle{ font-family:var(--mono); font-size:12.5px; color:var(--ink); font-weight:600; margin-top:8px; }
+
+  ul.plain{ padding-left:20px; margin:0; }
+  ul.plain li{ margin-bottom:8px; font-size:15px; }
+
+  .callout{
+    border-left:4px solid var(--teal); background:#EEF4F3; padding:16px 20px; border-radius:0 6px 6px 0; font-size:14.5px;
+  }
+  .callout.warn{ border-left-color:var(--amber); background:#FBF4E4; }
+
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+
+  .step-list{ counter-reset:step; list-style:none; padding:0; margin:0; }
+  .step-list li{
+    counter-increment:step; position:relative; padding:14px 0 14px 44px; border-bottom:1px solid var(--line); font-size:15px;
+  }
+  .step-list li:last-child{ border-bottom:none; }
+  .step-list li::before{
+    content:counter(step); position:absolute; left:0; top:12px; font-family:var(--mono); font-weight:700;
+    color:#fff; background:var(--ink); width:26px; height:26px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+
+  dl.glossary{ display:grid; grid-template-columns:200px 1fr; gap:10px 20px; margin:0; }
+  dl.glossary dt{ font-family:var(--mono); font-size:13.5px; font-weight:700; color:var(--ink); padding-top:4px; }
+  dl.glossary dd{ margin:0; font-size:14.5px; padding-top:4px; }
+
+  footer{ padding:36px 0 60px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* Level 3 toggle */
+  .switch-row{
+    display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line);
+    border-radius:6px; padding:14px 18px; margin-bottom:24px;
+  }
+  .switch{ position:relative; display:inline-block; width:44px; height:24px; flex:0 0 auto; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{
+    position:absolute; cursor:pointer; inset:0; background:var(--berry); border-radius:24px; transition:.2s;
+  }
+  .switch .slider::before{
+    content:""; position:absolute; height:18px; width:18px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider{ background:var(--teal); }
+  .switch input:checked + .slider::before{ transform:translateX(20px); }
+  .switch input:focus-visible + .slider{ outline:2px solid var(--ink); outline-offset:2px; }
+  .switch-row .switch-text{ font-size:14.5px; }
+  .switch-row .switch-text strong{ color:var(--ink); }
+  .switch-row .switch-status{
+    font-family:var(--mono); font-size:12px; padding:3px 10px; border-radius:12px; margin-left:auto;
+    background:#EEF4F3; color:var(--teal); white-space:nowrap;
+  }
+  .switch-row .switch-status.off{ background:#FBEFE9; color:var(--berry); }
+
+  .l3-fadeable{ transition:opacity .2s; }
+  .level3-excluded .l3-fadeable{ display:none !important; }
+  .level3-excluded #level3Card{ opacity:.35; filter:grayscale(60%); }
+  .level3-excluded .cumul-bar .seg.l1{ flex-basis:34%; }
+  .level3-excluded .cumul-bar .seg.l2{ flex-basis:66%; }
+  .level3-excluded .cumul-captions .cap.l1{ flex-basis:34%; }
+  .level3-excluded .cumul-captions .cap.l2{ flex-basis:66%; }
+  .level3-excluded tr.phase-3plus{ display:none; }
+
+  @media (max-width:760px){
+    .stat-grid, .grid-2, .grid-3, .doughnut-grid{ grid-template-columns:1fr; }
+    .level-track{ grid-template-columns:1fr; }
+    .level-card{ border-right:1px solid var(--line) !important; border-radius:6px !important; }
+    .level-track::after{ display:none; }
+    dl.glossary{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="eyebrow">Management Overview · Frontier Engineering Programme</div>
+    <h1>Teaching our AI to grade our AI</h1>
+    <p class="sub">A proposal to build an agentic evaluator that automates capstone assessment across four
+    technology tracks — RAG, multi-agent AI, secure tool integration (MCP), and the final integrated system.</p>
+    <div class="meta">Companion to: Multi-Domain Agentic Evaluator — Design Document (v4.0) · Rev 1.0</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="summary">
+  <h2><span class="num">01</span>Executive summary</h2>
+  <p class="section-intro">Every cohort produces capstones across four tracks, currently graded entirely
+  by hand. We propose an agentic evaluator — a system of specialised AI agents — to make grading faster,
+  more consistent, and able to scale, without removing human judgement from the process.</p>
+
+  <div class="stat-grid">
+    <div class="stat-card"><span class="num">4</span><span class="label">technology tracks covered</span></div>
+    <div class="stat-card"><span class="num">3</span><span class="label">levels of rigour per track</span></div>
+    <div class="stat-card"><span class="num" id="statPilot">~28–39d</span><span class="label">cost of a first, low-risk pilot</span></div>
+    <div class="stat-card"><span class="num" id="statFullBuild">~164–236d</span><span class="label" id="statFullBuildLabel">full four-track, full-rigour build</span></div>
+  </div>
+</section>
+
+<section id="problem">
+  <h2><span class="num">02</span>The problem</h2>
+  <div class="grid-2">
+    <ul class="plain">
+      <li>Manual review does not scale — grading time grows with cohort size, coaching time does not.</li>
+      <li>Grading quality varies with which facilitator reviews a submission, and how much time they have.</li>
+    </ul>
+    <ul class="plain">
+      <li>Some failure modes are genuinely hard to catch by reading code — e.g. confirming a safety rule
+      can't be talked around by rephrasing a request.</li>
+      <li>Security boundaries need to be actively tested, not just reviewed on paper.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="levels">
+  <h2><span class="num">03</span>Three levels of rigour</h2>
+  <p class="section-intro">Each track is assessed at up to three increasing levels. Each level is a
+  complete, usable system on its own — building Level 1 does not commit us to Level 2 or 3.</p>
+
+  <div class="level-track">
+    <div class="level-card">
+      <div class="lvl-num">1</div>
+      <h3>Static review</h3>
+      <p class="analogy">Reading the brochure before buying a car</p>
+      <p>Reads the submitted code and report; checks the required pieces are present and genuinely complete.</p>
+    </div>
+    <div class="level-card">
+      <div class="lvl-num">2</div>
+      <h3>Live execution</h3>
+      <p class="analogy">Taking the car for a test drive</p>
+      <p>Actually runs the system in a safe, isolated environment and tests it with real scenarios.</p>
+    </div>
+    <div class="level-card" id="level3Card">
+      <h3>Adversarial stress-test</h3>
+      <p class="analogy">Sending a mystery shopper</p>
+      <p>Deliberately tries to break it — trick questions, unauthorised access attempts, edge cases.</p>
+    </div>
+  </div>
+</section>
+
+<section id="modules">
+  <h2><span class="num">04</span>One platform, four modules</h2>
+  <p class="section-intro">All four tracks share the same foundation — a routing step, a common scoring
+  format, and a shared activity log. Only the track-specific checks differ.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Track</th><th>What learners build</th><th>What's distinctive about grading it</th></tr></thead>
+      <tbody>
+        <tr><td><strong>RAG</strong><br>CatalogueIQ</td><td>An AI assistant that answers questions from a knowledge base</td><td>Verify retrieval accuracy and citations; independently re-run quality metrics rather than trusting self-reported numbers</td></tr>
+        <tr><td><strong>Multi-Agent AI</strong><br>SupportPilot / CareRoute</td><td>A team of AI agents handling a business process end-to-end</td><td>Verify agent hand-offs, and that a mandatory safety escalation rule can't be bypassed by rephrasing a request</td></tr>
+        <tr><td><strong>MCP</strong><br>BankForge</td><td>AI agents connected to real backend banking systems via a standard protocol</td><td>Verify access is genuinely restricted per request — including deliberately trying to trick the system</td></tr>
+        <tr><td><strong>Nexus</strong><br>Integrated system</td><td>All of the above, combined into one working system</td><td>Architecturally different — see below</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-card">
+    <h4>What each track's rubric actually weighs</h4>
+    <p class="chart-note">Each capstone is graded on a different mix of criteria. Slice size = percentage weight.</p>
+    <div class="doughnut-grid">
+      <div class="doughnut-card"><div class="chart-box"><canvas id="donutA"></canvas></div><div class="dtitle">RAG — CatalogueIQ</div></div>
+      <div class="doughnut-card"><div class="chart-box"><canvas id="donutB"></canvas></div><div class="dtitle">Multi-Agent AI</div></div>
+      <div class="doughnut-card"><div class="chart-box"><canvas id="donutC"></canvas></div><div class="dtitle">MCP — BankForge</div></div>
+      <div class="doughnut-card"><div class="chart-box"><canvas id="donutD"></canvas></div><div class="dtitle">Nexus (integrated)</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="nexus">
+  <h2><span class="num">05</span>Why Nexus is different</h2>
+  <p class="section-intro">Nexus isn't a new technology to check — it tests whether the other three
+  tracks were genuinely <em>connected together</em> in one live system. Its own grading brief says it
+  plainly: <em>"integration, not reimplementation."</em></p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>New check</th><th>What it verifies</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Integration tracer</strong></td><td>Follows one real request end-to-end and confirms each stage's output genuinely feeds the next stage's input</td></tr>
+        <tr><td><strong>Guardrails checker</strong></td><td>Confirms the full safety stack is active across the whole system, not just one component</td></tr>
+        <tr><td><strong>Anti-decomposition check</strong></td><td>Tests for a team having "gamed" the integration requirement with a shortcut that merely looks wired together</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:14.5px;margin-top:14px;">Everything else is <strong>reused directly</strong> from the
+  other three tracks' evaluators — which is why Nexus's module is one of the cheapest to add, provided the
+  other three already exist.</p>
+</section>
+
+<section id="human">
+  <h2><span class="num">06</span>What stays human</h2>
+  <div class="grid-2">
+    <ul class="plain">
+      <li>Final grading decisions always stay human — the system produces evidence and a proposed score, not an unappealable verdict.</li>
+      <li>Live demo communication skills are not something we're trying to automate away.</li>
+    </ul>
+    <ul class="plain">
+      <li>Anything the system is unsure about, or that fails a safety/security check, is automatically routed to a person.</li>
+      <li>Safety-sensitive test content is authored and reviewed by someone with appropriate clinical/safeguarding background.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="investment">
+  <h2><span class="num">07</span>Investment required</h2>
+  <p class="section-intro">Effort ranges reflect uncertainty inherent in any estimate at this stage —
+  bars show the low–high range in engineer-days.</p>
+
+  <div class="switch-row">
+    <label class="switch">
+      <input type="checkbox" id="level3Toggle" checked>
+      <span class="slider"></span>
+    </label>
+    <span class="switch-text">Include <strong>Level 3 — Adversarial stress-test</strong> in the numbers below</span>
+    <span class="switch-status" id="switchStatus">3 levels included</span>
+  </div>
+
+  <div class="chart-card">
+    <h4>Engineer-days by track and level</h4>
+    <p class="chart-note">Each bar is a <strong>running total</strong>, not an add-on cost. Worked example
+    using the RAG track — read left to right:</p>
+
+    <div class="cumul-guide">
+      <div class="guide-label" id="guideLabel">Worked example — RAG track (8–11 → 24–35 → 44–64 days)</div>
+      <div class="cumul-bar">
+        <div class="seg l1">Level 1: 8–11d</div>
+        <div class="seg l2">+ 16–24d more</div>
+        <div class="seg l3 l3-fadeable">+ 20–29d more</div>
+      </div>
+      <div class="cumul-captions">
+        <div class="cap l1"><strong>Level 1 total: 8–11d</strong>static review only</div>
+        <div class="cap l2"><strong>Level 2 total: 24–35d</strong>Level 1 + live execution</div>
+        <div class="cap l3 l3-fadeable"><strong>Level 3 total: 44–64d</strong>Level 2 + stress-testing</div>
+      </div>
+    </div>
+
+    <p class="chart-note">The chart below shows only the <strong>running totals</strong> (labelled on each
+    bar) for all four tracks — the segment widths above are what those totals are made of.</p>
+    <div class="chart-box"><canvas id="trackTierChart"></canvas></div>
+
+    <div class="table-wrap" style="margin-top:18px;">
+      <table>
+        <thead><tr><th>Track</th><th>Level 1 total</th><th>Level 2 total</th><th class="l3-fadeable">Level 3 total</th><th>Why it differs</th></tr></thead>
+        <tbody>
+          <tr><td>RAG</td><td>8–11d</td><td>24–35d</td><td class="l3-fadeable">44–64d</td><td>Needs embeddings + independently re-running quality metrics</td></tr>
+          <tr><td>Multi-Agent AI</td><td>6–9d</td><td>18–26d</td><td class="l3-fadeable">30–42d</td><td>Cheapest — no embeddings/metrics, just message-passing between agents</td></tr>
+          <tr><td>MCP</td><td>7–10d</td><td>26–38d</td><td class="l3-fadeable">40–58d</td><td>Most expensive Level 2 — orchestrating 3 secured servers in Docker</td></tr>
+          <tr><td>Nexus</td><td>7–10d</td><td>24–35d</td><td class="l3-fadeable">44–63d</td><td>Cheap only because it reuses the other three tracks (Section 5)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="margin-top:18px;">
+      <strong>Second worked example — MCP track, the most expensive one:</strong> Level 1 (7–10 days) is
+      just reading the code. Level 2 jumps to 26–38 days — <strong>+19–28 extra days</strong> — because
+      unlike the other tracks, this is where we actually spin up three containerised servers together and
+      test whether access is genuinely restricted.
+      <span class="l3-fadeable">Level 3 adds a further <strong>+14–20 days</strong> to
+      reach 40–58, specifically to try to trick the system into overstepping those restrictions.</span>
+      The size
+      of each jump reflects how much new engineering that level requires for <em>that specific track</em> —
+      which is exactly why MCP's bars are taller than Multi-Agent AI's at every level.
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h4>Whole-programme cumulative investment, by phase</h4>
+    <p class="chart-note">Same rule applies: each bar is everything spent up to and including that phase.
+    Phase 4 (Nexus) is only cheap on top because Phases 1–3 already exist — see Section 5.</p>
+    <div class="chart-box short"><canvas id="phaseChart"></canvas></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Phase</th><th>Scope</th><th>Cumulative effort</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Shared foundation + Level 1, all of RAG / Multi-Agent / MCP</td><td>~27–39 engineer-days (~6–8 wks solo / ~3–4 wks pair)</td></tr>
+        <tr><td>2</td><td>+ Level 2 (live execution), same three tracks</td><td>~74–108 engineer-days (~15–22 wks solo / ~8–11 wks pair)</td></tr>
+        <tr class="phase-3plus"><td>3</td><td>+ Level 3 (stress-testing), same three tracks</td><td>~120–173 engineer-days (~24–35 wks solo / ~12–18 wks pair)</td></tr>
+        <tr class="phase-3plus"><td>4</td><td>+ Nexus module, all three levels</td><td>~164–236 engineer-days (~33–47 wks solo / ~17–24 wks pair)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="whydeeper">
+  <h2><span class="num">08</span>Why deeper levels are worth it</h2>
+  <p class="section-intro">Approximate share of each track's rubric the evaluator can confirm with high
+  confidence, by level — derived from the rubric-to-agent mapping in the full design document.</p>
+  <div class="chart-card">
+    <h4>Rubric confidence achieved, by level</h4>
+    <p class="chart-note">Level 1 alone leaves most of the rubric unverified for three of the four tracks — this is the central argument for funding Level 2.</p>
+    <div class="chart-box"><canvas id="confidenceChart"></canvas></div>
+  </div>
+</section>
+
+<section id="risks">
+  <h2><span class="num">09</span>Risks and how we manage them</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Level 1 trusts a claim it can't verify</td><td>Every finding is confidence-tagged; unverified items are flagged for a human, never silently scored as correct</td></tr>
+        <tr><td>Generated test questions feel inconsistent across submissions</td><td>All questions anchored to the same published bank; only the specific example varies, never the difficulty</td></tr>
+        <tr><td>Safety-sensitive test content</td><td>Authored/reviewed by someone with clinical or safeguarding background; clearly labelled synthetic</td></tr>
+        <tr><td>Running learner code introduces security exposure</td><td>Isolated, disposable environment with no unnecessary network access</td></tr>
+        <tr><td>System over-trusts its own stress-test results</td><td>Any single safety/security failure is an automatic hard-stop for human review, regardless of the rest of the score</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="recommendation">
+  <h2><span class="num">10</span>Recommendation</h2>
+  <ol class="step-list">
+    <li><strong>Start with Phase 1</strong> — shared foundation plus Level 1 review across RAG, Multi-Agent, and MCP. Lowest cost, lowest risk entry point.</li>
+    <li><strong>Run it alongside manual grading</strong> for one cohort before relying on it, to build confidence and calibrate against real facilitator decisions.</li>
+    <li><strong>Add the Nexus module last</strong>, only after the other three tracks are complete — its low cost depends directly on that order.</li>
+    <li><strong>Revisit scope after each phase</strong> with real data, rather than committing to the full build up front.</li>
+  </ol>
+</section>
+
+<section id="glossary">
+  <h2><span class="num">11</span>Glossary</h2>
+  <dl class="glossary">
+    <dt>RAG</dt><dd>Retrieval-Augmented Generation — an AI system that retrieves relevant information, then generates a response grounded in it.</dd>
+    <dt>MCP</dt><dd>Model Context Protocol — a standard way for AI systems to connect securely to external tools and data, instead of custom integrations per system.</dd>
+    <dt>Agent</dt><dd>A focused, single-purpose AI component responsible for one task, e.g. checking a report section or verifying a security rule.</dd>
+    <dt>Level (1/2/3)</dt><dd>The three increasing levels of evaluation rigour: static review, live execution, adversarial stress-testing.</dd>
+    <dt>Escalation</dt><dd>A rule that hands a decision to a human instead of letting the AI resolve it automatically — used both inside the capstones being graded, and inside the evaluator itself.</dd>
+    <dt>Rubric</dt><dd>The published set of weighted criteria a capstone submission is graded against.</dd>
+    <dt>Sandbox</dt><dd>An isolated, disposable environment used to safely run a learner's submitted code.</dd>
+  </dl>
+</section>
+
+</div>
+
+<footer>Full technical specification: Multi-Domain Agentic Evaluator — Design Document (v4.0)</footer>
+
+<script>
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', { display:false }); // off by default, opt in per chart below
+Chart.defaults.font.family = "-apple-system, 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif";
+Chart.defaults.color = '#3A3F4B';
+Chart.defaults.font.size = 12.5;
+const animOpt = reduceMotion ? false : { duration: 700, easing: 'easeOutQuart' };
+
+const palette = ['#2A6F6F','#B98900','#6B5B95','#4C7A3F','#A83E5D','#5B6B7A','#3D6EA8','#8A5A2B'];
+
+function makeDonut(id, labels, data){
+  new Chart(document.getElementById(id), {
+    type: 'doughnut',
+    data: { labels, datasets:[{ data, backgroundColor: palette.slice(0,labels.length), borderColor:'#fff', borderWidth:2 }]},
+    options: {
+      responsive:true, maintainAspectRatio:false, animation: animOpt,
+      plugins:{
+        legend:{ display:true, position:'bottom', labels:{ boxWidth:10, font:{size:10.5}, padding:8 } },
+        tooltip:{ callbacks:{ label: (ctx) => `${ctx.label}: ${ctx.parsed}%` } }
+      }
+    }
+  });
+}
+
+makeDonut('donutA', ['Working system','Chunking','Retrieval design','RAGAS eval','Report','Demo/Q&A'], [25,15,20,20,10,10]);
+makeDonut('donutB', ['Multi-agent arch','Class./retrieval','Draft/validation','Escalation logic','Arch. doc','Demo/debrief'], [20,15,15,25,15,10]);
+makeDonut('donutC', ['MCP implementation','Security/scoped access','Data minimisation','Compliance check','Multi-server','Arch/deploy/demo'], [25,20,15,10,15,15]);
+makeDonut('donutD', ['End-to-end integration','Structured intake','Grounded retrieval','Multi-agent/escalation','MCP tool access','Guardrails','Deployment','Demo/debrief'], [25,10,15,15,15,10,5,5]);
+
+// Track x Tier effort (engineer-days, floating bars = [min,max])
+const trackTierChart = new Chart(document.getElementById('trackTierChart'), {
+  type: 'bar',
+  data: {
+    labels: ['RAG\n(CatalogueIQ)','Multi-Agent AI','MCP\n(BankForge)','Nexus'],
+    datasets: [
+      { label:'Level 1', data:[[8,11],[6,9],[7,10],[7,10]], backgroundColor: palette[0] },
+      { label:'Level 2 (cumulative)', data:[[24,35],[18,26],[26,38],[24,35]], backgroundColor: palette[1] },
+      { label:'Level 3 (cumulative)', data:[[44,64],[30,42],[40,58],[44,63]], backgroundColor: palette[4] }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, animation: animOpt,
+    plugins:{
+      legend:{ position:'bottom' },
+      tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label} — running total: ${ctx.raw[0]}–${ctx.raw[1]} engineer-days` } },
+      datalabels:{
+        display:true, color:'#fff',
+        backgroundColor:'rgba(0,0,0,0.55)', borderRadius:4, padding:{top:3,bottom:3,left:6,right:6},
+        font:{ family:"'SF Mono', ui-monospace, monospace", size:11, weight:700 },
+        formatter:(v)=> `${v[0]}–${v[1]}d`,
+        anchor:'end', align:'start', clamp:true
+      }
+    },
+    scales:{ y:{ title:{ display:true, text:'Engineer-days (running total)' }, grid:{ color:'#E1E4E9' } }, x:{ grid:{ display:false } } }
+  }
+});
+
+// Phase cumulative effort (floating bars)
+const phaseDataFull = { labels:['Phase 1','Phase 2','Phase 3','Phase 4'], data:[[27,39],[74,108],[120,173],[164,236]] };
+const phaseDataNoL3 = { labels:['Phase 1','Phase 2'], data:[[27,39],[74,108]] };
+const phaseChart = new Chart(document.getElementById('phaseChart'), {
+  type:'bar',
+  data:{
+    labels:['Phase 1','Phase 2','Phase 3','Phase 4'],
+    datasets:[{ label:'Cumulative engineer-days', data:[[27,39],[74,108],[120,173],[164,236]], backgroundColor: palette[2] }]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false, animation: animOpt,
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ callbacks:{ label:(ctx)=> `Running total through ${ctx.label}: ${ctx.raw[0]}–${ctx.raw[1]} engineer-days` } },
+      datalabels:{
+        display:true, color:'#fff',
+        backgroundColor:'rgba(0,0,0,0.55)', borderRadius:4, padding:{top:3,bottom:3,left:6,right:6},
+        font:{ family:"'SF Mono', ui-monospace, monospace", size:11, weight:700 },
+        formatter:(v)=> `${v[0]}–${v[1]}d`,
+        anchor:'end', align:'start', clamp:true
+      }
+    },
+    scales:{ x:{ title:{ display:true, text:'Engineer-days (running total)' }, grid:{ color:'#E1E4E9' } }, y:{ grid:{ display:false } } }
+  }
+});
+
+// Rubric confidence by level (approximate, non-floating grouped bars)
+const confidenceChart = new Chart(document.getElementById('confidenceChart'), {
+  type:'bar',
+  data:{
+    labels:['RAG','Multi-Agent AI','MCP','Nexus'],
+    datasets:[
+      { label:'Level 1', data:[30,25,30,15], backgroundColor: palette[0] },
+      { label:'Level 2', data:[80,75,68,70], backgroundColor: palette[1] },
+      { label:'Level 3', data:[90,90,92,92], backgroundColor: palette[4] }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, animation: animOpt,
+    plugins:{
+      legend:{ position:'bottom' },
+      tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ~${ctx.raw}% of rubric confirmed` } },
+      datalabels:{
+        display:true, color:'#fff',
+        backgroundColor:'rgba(0,0,0,0.55)', borderRadius:4, padding:{top:2,bottom:2,left:5,right:5},
+        font:{ size:10.5, weight:700 },
+        formatter:(v)=> `${v}%`, anchor:'end', align:'start', clamp:true
+      }
+    },
+    scales:{ y:{ beginAtZero:true, max:100, title:{ display:true, text:'% of rubric confirmed (approx.)' }, grid:{ color:'#E1E4E9' } }, x:{ grid:{ display:false } } }
+  }
+});
+
+// --- Level 3 toggle: hides the "adversarial stress-test" level everywhere at once ---
+const level3Toggle = document.getElementById('level3Toggle');
+const switchStatus = document.getElementById('switchStatus');
+const guideLabel = document.getElementById('guideLabel');
+const statFullBuild = document.getElementById('statFullBuild');
+const statFullBuildLabel = document.getElementById('statFullBuildLabel');
+
+function setLevel3(enabled){
+  document.body.classList.toggle('level3-excluded', !enabled);
+
+  // Chart datasets: hide/show the "Level 3" series (index 2) on the two grouped-bar charts
+  trackTierChart.setDatasetVisibility(2, enabled);
+  trackTierChart.update();
+  confidenceChart.setDatasetVisibility(2, enabled);
+  confidenceChart.update();
+
+  // Phase chart: swap between the 4-phase and 2-phase dataset entirely (Phase 3/4 assume Level 3 exists)
+  const src = enabled ? phaseDataFull : phaseDataNoL3;
+  phaseChart.data.labels = src.labels;
+  phaseChart.data.datasets[0].data = src.data;
+  phaseChart.update();
+
+  // Text swaps
+  guideLabel.textContent = enabled
+    ? 'Worked example — RAG track (8–11 → 24–35 → 44–64 days)'
+    : 'Worked example — RAG track (8–11 → 24–35 days) · Level 3 excluded';
+  statFullBuild.textContent = enabled ? '~164–236d' : '~74–108d';
+  statFullBuildLabel.textContent = enabled ? 'full four-track, full-rigour build' : 'full three-track build, Level 1–2 only';
+
+  switchStatus.textContent = enabled ? '3 levels included' : '2 levels included';
+  switchStatus.classList.toggle('off', !enabled);
+}
+
+level3Toggle.addEventListener('change', (e) => setLevel3(e.target.checked));
+setLevel3(true); // initial state matches the checked checkbox
+</script>
+
+</body>
+</html>
